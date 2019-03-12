@@ -35,8 +35,8 @@ const int  SIZEY(10);		//vertical dimension
 const char SPOT('0');   	//spot
 const char TUNNEL(' ');    	//tunnel
 const char WALL('#');    	//border
-const char MOUSE('M');		//mouse
-const char SNAKE('o');		//snake body
+const char MOUSE('m');
+const char SNAKE('o');
 //defining the command letters to move the spot on the maze
 const int  UP(72);			//up arrow
 const int  DOWN(80); 		//down arrow
