@@ -32,9 +32,11 @@ using namespace std;
 const int  SIZEX(13);    	//horizontal dimension
 const int  SIZEY(10);		//vertical dimension
 //defining symbols used for display of the grid and content
-const char SPOT('@');   	//spot
+const char SPOT('0');   	//spot
 const char TUNNEL(' ');    	//tunnel
 const char WALL('#');    	//border
+const char MOUSE('M');
+const char SNAKE('o');
 //defining the command letters to move the spot on the maze
 const int  UP(72);			//up arrow
 const int  DOWN(80); 		//down arrow
@@ -48,6 +50,7 @@ struct Item {
 	char symbol;
 };
 
+
 //---------------------------------------------------------------------------
 //----- run game
 //---------------------------------------------------------------------------
@@ -55,9 +58,9 @@ struct Item {
 int main()
 {
 	//function declarations (prototypes)
-	void initialiseGame(char g[][SIZEX], char m[][SIZEX], Item& spot);
-	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot);
-	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess);
+	void initialiseGame(char g[][SIZEX], char m[][SIZEX], Item& spot, Item& mouse);
+	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse);
+	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse);
 	bool wantsToQuit(const int key);
 	bool isArrowKey(const int k);
 	int  getKeyPress();
@@ -67,22 +70,23 @@ int main()
 	char grid[SIZEY][SIZEX];			//grid for display
 	char maze[SIZEY][SIZEX];			//structure of the maze
 	Item spot = { 0, 0, SPOT }; 		//spot's position and symbol
+	Item mouse = { 0, 0, MOUSE };
 	string message("LET'S START...");	//current message to player
 
 	//action...
 	seed();								//seed the random number generator
 	SetConsoleTitle("FoP 2018-19 - Task 1c - Game Skeleton");
-	initialiseGame(grid, maze, spot);	//initialise grid (incl. walls and spot)
+	initialiseGame(grid, maze, spot, mouse);	//initialise grid (incl. walls and spot)
 	int key;							//current key selected by player
 	do {
-		renderGame(grid, message, spot);			//display game info, modified grid and messages
+		renderGame(grid, message, spot, mouse);			//display game info, modified grid and messages
 		key = toupper(getKeyPress()); 	//read in  selected key: arrow or letter command
 		if (isArrowKey(key))
-			updateGame(grid, maze, spot, key, message);
+			updateGame(grid, maze, spot, key, message, mouse);
 		else
 			message = "INVALID KEY!";  //set 'Invalid key' message
 	} while (!wantsToQuit(key));		//while user does not want to quit
-	renderGame(grid, message, spot);			//display game info, modified grid and messages
+	renderGame(grid, message, spot, mouse);			//display game info, modified grid and messages
 	endProgram();						//display final message
 	return 0;
 }
@@ -92,15 +96,18 @@ int main()
 //----- initialise game state
 //---------------------------------------------------------------------------
 
-void initialiseGame(char grid[][SIZEX], char maze[][SIZEX], Item& spot)
+void initialiseGame(char grid[][SIZEX], char maze[][SIZEX], Item& spot, Item& mouse)
 { //initialise grid and place spot in middle
 	void setInitialMazeStructure(char maze[][SIZEX]);
 	void setSpotInitialCoordinates(Item& spot, const char[][SIZEX]);
-	void updateGrid(char g[][SIZEX], const char m[][SIZEX], const Item& i);
+	void setMouseCoordinates(Item& mouse, const char[][SIZEX]);
+	void updateGrid(char g[][SIZEX], const char m[][SIZEX], Item& i, Item& mouse);
 
-	setInitialMazeStructure(maze);		//initialise maze
+	setInitialMazeStructure(maze);			//initialise maze
 	setSpotInitialCoordinates(spot, maze);
-	updateGrid(grid, maze, spot);		//prepare grid
+	setMouseCoordinates(mouse, maze);
+
+	updateGrid(grid, maze, spot, mouse);		//prepare grid
 }
 
 void setSpotInitialCoordinates(Item& spot, const char maze[][SIZEX])
@@ -111,6 +118,12 @@ void setSpotInitialCoordinates(Item& spot, const char maze[][SIZEX])
 	} while (maze[spot.y][spot.x] == WALL); //Ensuring spot does not land on WALL space, will make new spot if this is the case
 }
 
+void setMouseCoordinates(Item& mouse, const char maze[][SIZEX]) {
+	do {
+		mouse.y = random(SIZEY - 2);
+		mouse.x = random(SIZEX - 2);
+	} while (maze[mouse.y][mouse.x] == WALL || maze[mouse.y][mouse.x] == SNAKE || maze[mouse.y][mouse.x] == SPOT);
+}
 void setInitialMazeStructure(char maze[][SIZEX])
 { //set the position of the walls in the maze
   //initialise maze configuration
@@ -141,17 +154,22 @@ void setInitialMazeStructure(char maze[][SIZEX])
 //----- Update Game
 //---------------------------------------------------------------------------
 
-void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess)
+void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse)
 { //update game
-	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m);
-	void updateGrid(char g[][SIZEX], const char maze[][SIZEX], const Item& s);
-	updateGameData(grid, spot, keyCode, mess);		//move spot in required direction
-	updateGrid(grid, maze, spot);					//update grid information
+	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse);
+	void updateGrid(char g[][SIZEX], const char maze[][SIZEX], Item& s, Item& mouse);
+
+	updateGameData(grid, spot, keyCode, mess, mouse);		//move spot in required direction
+	updateGrid(grid, maze, spot, mouse);					//update grid information
 }
-void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess)
+
+
+void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse)
 { //move spot in required direction
 	bool isArrowKey(const int k);
 	void setKeyDirection(int k, int& dx, int& dy);
+	void eatMouse(Item& spot, Item& mouse);
+	void setMouseCoordinates(Item& mouse, const char[][SIZEX]);
 	assert(isArrowKey(key));
 
 	//reset message to blank
@@ -171,15 +189,21 @@ void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& me
 	case WALL:  		//hit a wall and stay there
 		mess = "CANNOT GO THERE!";
 		break;
+	case MOUSE:
+		mess = "nomnomnom";
+		eatMouse(spot, mouse);
+		setMouseCoordinates(mouse, g);
+		break;
 	}
 }
-void updateGrid(char grid[][SIZEX], const char maze[][SIZEX], const Item& spot)
+void updateGrid(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, Item& mouse)
 { //update grid configuration after each move
 	void placeMaze(char g[][SIZEX], const char b[][SIZEX]);
 	void placeItem(char g[][SIZEX], const Item& spot);
 
 	placeMaze(grid, maze);	//reset the empty maze configuration into grid
 	placeItem(grid, spot);	//set spot in grid
+	placeItem(grid, mouse); //set mouse position in grid
 }
 
 void placeMaze(char grid[][SIZEX], const char maze[][SIZEX])
@@ -193,6 +217,13 @@ void placeItem(char g[][SIZEX], const Item& item)
 { //place item at its new position in grid
 	g[item.y][item.x] = item.symbol;
 }
+
+void eatMouse(Item& spot, Item& mouse) {
+	spot.x = mouse.x;
+	spot.y = mouse.y;
+}
+
+
 //---------------------------------------------------------------------------
 //----- process key
 //---------------------------------------------------------------------------
@@ -263,23 +294,24 @@ void showMessage(const WORD backColour, const WORD textColour, int x, int y, con
 	selectTextColour(textColour);
 	cout << message + string(40 - message.length(), ' ');
 }
-void renderGame(const char g[][SIZEX], const string& mess, const Item& spot)
+void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse)
 { //display game title, messages, maze, spot and other items on screen
 	string tostring(char x);
 	string tostring(int x);
 	void showMessage(const WORD backColour, const WORD textColour, int x, int y, const string& message);
-	void paintGrid(const char g[][SIZEX], const Item&);
-	void getSystemTime(int&, int&, int&);
-	const string timeToString(int, int, int);
+	void paintGrid(const char g[][SIZEX], const Item&, const Item&);
+	const string getDate();
+	const string getTime();
+
 	//display game title
 
 	int hour, min, sec; //Variables for date and time
 
 	getSystemTime(hour, min, sec);
-	showMessage(clBlue, clWhite, 0, 0, "___GAME___");
+	showMessage(clBlue, clWhite, 0, 0, "Ben And Ryan's SNAKE GAME");
 	showMessage(clBlack, clBlack, 11, 0, " ");
 	showMessage(clWhite, clRed, 40, 2, "FoP Task 1c - February 2019   ");
-	showMessage(clBlack, clGreen, 100, 2, timeToString(hour, min, sec));
+	showMessage(clBlack, clGreen, 90, 2, getDate() + " " + getTime());
 	showMessage(clBlack, clBlack, 40, 3, " ");
 	showMessage(clBlue, clWhite, 40, 4, "SE, Ryan Evans b8017748");
 	showMessage(clBlue, clWhite, 40, 5, "Ben Mottershead b7003892");
@@ -287,15 +319,14 @@ void renderGame(const char g[][SIZEX], const string& mess, const Item& spot)
 	showMessage(clBlack, clBlack, 40, 6, " ");
 	showMessage(clRed, clYellow, 40, 7, "TO MOVE - USE KEYBOARD ARROWS ");
 	showMessage(clRed, clYellow, 40, 10, "TO QUIT - ENTER 'Q'           ");
-
 	//print auxiliary messages if any
 	showMessage(clBlack, clWhite, 40, 8, mess);	//display current message
 
 	//display grid contents
-	paintGrid(g, spot);
+	paintGrid(g, spot, mouse);
 }
 
-void paintGrid(const char g[][SIZEX], const Item& spot)
+void paintGrid(const char g[][SIZEX], const Item& spot, const Item& mouse)
 { //display grid content on screen
 	selectBackColour(clBlack);
 	selectTextColour(clWhite);
@@ -303,13 +334,18 @@ void paintGrid(const char g[][SIZEX], const Item& spot)
 	for (int row(0); row < SIZEY; ++row)
 	{
 		for (int col(0); col < SIZEX; ++col)
-			if (g[row][col] != g[spot.y][spot.x]) //If isn't spot
+			if (g[row][col] != g[spot.y][spot.x] && g[row][col] != g[mouse.y][mouse.x]) //If isn't spot
 				cout << g[row][col];	//output cell content
-			else {
+			else if (g[row][col] == g[spot.y][spot.x]) {
 				selectTextColour(clMagenta);
 				cout << g[row][col];
 				selectTextColour(clWhite);
-			};
+			}
+			else {
+				selectTextColour(clDarkYellow);
+				cout << g[row][col];
+				selectTextColour(clWhite);
+			}
 		cout << endl;
 	}
 	
