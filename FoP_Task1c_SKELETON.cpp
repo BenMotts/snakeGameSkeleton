@@ -67,7 +67,7 @@ int main()
 	bool isArrowKey(const int k);
 	int  getKeyPress();
 	void endProgram();
-
+	void cheatSnake(vector<Item>& snakeBody);
 	//local variable declarations 
 	char grid[SIZEY][SIZEX];			//grid for display
 	char maze[SIZEY][SIZEX];			//structure of the maze
@@ -86,6 +86,9 @@ int main()
 		key = toupper(getKeyPress()); 	//read in  selected key: arrow or letter command
 		if (isArrowKey(key))
 			updateGame(grid, maze, spot, key, message, mouse, snakeBody);
+		else if (toupper(key) == 'C') {
+			cheatSnake(snakeBody);
+		}
 		else
 			message = "INVALID KEY!";  //set 'Invalid key' message
 	} while (!wantsToQuit(key));		//while user does not want to quit
@@ -114,13 +117,20 @@ void initialiseGame(char grid[][SIZEX], char maze[][SIZEX], Item& spot, Item& mo
 
 	updateGrid(grid, maze, spot, mouse, snakeBody);		//prepare grid
 }
-void growSnake(vector<Item>& snakeBody, Item& mouse, Item& spot) {
-	Item bodyPart;
-	bodyPart.symbol = SNAKE;
 
-	snakeBody.push_back(bodyPart);
+void growSnake(vector<Item>& snakeBody, Item& mouse, Item& spot) {			//Increase the size of the snake
+	Item bodyPart;														//Create new Item bodypart
+	bodyPart.symbol = SNAKE;											//Set bodypart symbol to body (declared as global variable)
+
+	snakeBody.push_back(bodyPart);										//Add to end of vector
 }
-void moveSnake(vector<Item>& snakeBody, Item& spot, int dx, int dy) {
+
+void cheatSnake(vector<Item>& snakeBody) {				//Decrease snake size down to 3, on keypress 'c'
+	for (int i(snakeBody.size()); i > 3; --i) {			//For every bodypart past size 3
+		snakeBody.pop_back();							//Remove from vector
+	}
+}
+void moveSnake(vector<Item>& snakeBody, Item& spot, int dx, int dy) {			//Move the body of the snake, to follow the spot
 	for (int i(snakeBody.size()); i != 1; --i) {
 
 		snakeBody.at(i - 1).x = snakeBody.at(i - 2).x;
@@ -131,7 +141,7 @@ void moveSnake(vector<Item>& snakeBody, Item& spot, int dx, int dy) {
 	spot.x += dx;
 	spot.y += dy;
 }
-void initialiseSnakeBody(vector<Item>& snakeBody, Item& spot) {
+void initialiseSnakeBody(vector<Item>& snakeBody, Item& spot) {					//Create initial snakebody. Adds Items to vector of items
 	for (int i(0); i < 3; ++i) {
 		Item bodyPart;
 		bodyPart.symbol = SNAKE;
@@ -147,7 +157,7 @@ void initialiseSnakeBody(vector<Item>& snakeBody, Item& spot) {
 	}
 }
 
-void setSpotInitialCoordinates(Item& spot, const char maze[][SIZEX])
+void setSpotInitialCoordinates(Item& spot, const char maze[][SIZEX])				//Set initaial coordinates of head of snake.
 { //set spot coordinates inside the grid at random at beginning of game
 	//do {
 	//	spot.y = random(SIZEY - 2);      //vertical coordinate in range [1..(SIZEY - 2)]
@@ -157,7 +167,7 @@ void setSpotInitialCoordinates(Item& spot, const char maze[][SIZEX])
 	spot.x = 5;
 }
 
-void setMouseCoordinates(Item& mouse, const char maze[][SIZEX]) { //Random mouse coordinate
+void setMouseCoordinates(Item& mouse, const char maze[][SIZEX]) {					//Random mouse coordinate, Avoids snakeBody and spot
 	do {
 		mouse.y = random(SIZEY - 2);
 		mouse.x = random(SIZEX - 2);
@@ -261,7 +271,7 @@ void placeItem(char g[][SIZEX], const Item& item)
 	g[item.y][item.x] = item.symbol;
 }
 
-void eatMouse(Item& spot, Item& mouse, vector<Item>& snakeBody) {
+void eatMouse(Item& spot, Item& mouse, vector<Item>& snakeBody) {					//Eat mouse, increase size of snake and increment score
 	void growSnake(vector<Item>& snakeBody, Item& mouse, Item& spot);
 
 	growSnake(snakeBody, mouse, spot);
