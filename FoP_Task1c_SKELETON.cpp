@@ -60,8 +60,8 @@ int main()
 {
 	//function declarations (prototypes)
 	void initialiseGame(char g[][SIZEX], char m[][SIZEX], Item& spot, Item& mouse, vector<Item>& snakeBody);
-	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse);
-	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten);
+	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse, bool isCheat, const vector<Item>& snakeBody);
+	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, const bool isCheat);
 	bool wantsToQuit(const int key);
 	bool isArrowKey(const int k);
 	int  getKeyPress();
@@ -75,6 +75,7 @@ int main()
 	string message("LET'S START...");	//current message to player
 	vector<Item> snakeBody;
 	bool mouseEaten = false;			//Bool to make snake grow twice on eating mouse
+	bool isCheat = false;
 
 	//action...
 	seed();								//seed the random number generator
@@ -82,17 +83,23 @@ int main()
 	initialiseGame(grid, maze, spot, mouse, snakeBody);	//initialise grid (incl. walls and spot)
 	int key;							//current key selected by player
 	do {
-		renderGame(grid, message, spot, mouse);			//display game info, modified grid and message
+		renderGame(grid, message, spot, mouse, isCheat, snakeBody);			//display game info, modified grid and message
 		key = toupper(getKeyPress()); 	//read in  selected key: arrow or letter command
 		if (isArrowKey(key))
-			updateGame(grid, maze, spot, key, message, mouse, snakeBody, mouseEaten);
+			updateGame(grid, maze, spot, key, message, mouse, snakeBody, mouseEaten, isCheat);
 		else if (toupper(key) == 'C') {
-			cheatSnake(snakeBody);
+			if (!isCheat) {
+				cheatSnake(snakeBody);
+				isCheat = true;
+			}
+			else {
+				isCheat = false;
+			}
 		}
 		else
 			message = "INVALID KEY!";  //set 'Invalid key' message
 	} while (!wantsToQuit(key));		//while user does not want to quit
-	renderGame(grid, message, spot, mouse);			//display game info, modified grid and messages
+	renderGame(grid, message, spot, mouse, isCheat, snakeBody);			//display game info, modified grid and messages
 	endProgram();						//display final message
 	return 0;
 }
@@ -127,6 +134,8 @@ void growSnake(vector<Item>& snakeBody, Item& mouse, Item& spot) {			//Increase 
 }
 
 void cheatSnake(vector<Item>& snakeBody) {				//Decrease snake size down to 3, on keypress 'c'
+	void showMessage(const WORD backColour, const WORD textColour, int x, int y, const string& message);
+
 	for (int i(snakeBody.size()); i > 3; --i) {			//For every bodypart past size 3
 		snakeBody.pop_back();							//Remove from vector
 	}
@@ -206,17 +215,17 @@ void setInitialMazeStructure(char maze[][SIZEX])
 //----- Update Game
 //---------------------------------------------------------------------------
 
-void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten)
+void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, const bool isCheat)
 { //update game
-	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten);
+	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, const bool isCheat);
 	void updateGrid(char g[][SIZEX], const char maze[][SIZEX], Item& s, Item& mouse, vector<Item>& snakeBody);
 
-	updateGameData(grid, spot, keyCode, mess, mouse, snakeBody, mouseEaten);		//move spot in required direction
+	updateGameData(grid, spot, keyCode, mess, mouse, snakeBody, mouseEaten, isCheat);		//move spot in required direction
 	updateGrid(grid, maze, spot, mouse, snakeBody);					//update grid information
 }
 
 
-void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten)
+void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, const bool isCheat)
 { //move spot in required direction
 	bool isArrowKey(const int k);
 	void setKeyDirection(int k, int& dx, int& dy);
@@ -245,11 +254,13 @@ void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& me
 		mess = "CANNOT GO THERE!";
 		break;
 	case MOUSE:
-		mess = "nomnomnom";
-		eatMouse(spot, mouse, snakeBody);
+			mess = "nomnomnom";
+		if (!isCheat) {
+			eatMouse(spot, mouse, snakeBody);
+			mouseEaten = true;
+		}
 		moveSnake(snakeBody, spot, dx, dy);
 		setMouseCoordinates(mouse, g);
-		mouseEaten = true;
 		break;
 	}
 }
@@ -282,7 +293,6 @@ void eatMouse(Item& spot, Item& mouse, vector<Item>& snakeBody) {					//Eat mous
 	void growSnake(vector<Item>& snakeBody, Item& mouse, Item& spot);
 
 	growSnake(snakeBody, mouse, spot);
-
 }
 
 
@@ -356,12 +366,12 @@ void showMessage(const WORD backColour, const WORD textColour, int x, int y, con
 	selectTextColour(textColour);
 	cout << message + string(40 - message.length(), ' ');
 }
-void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse)
+void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse, bool isCheat, const vector<Item>& snakeBody)
 { //display game title, messages, maze, spot and other items on screen
 	string tostring(char x);
 	string tostring(int x);
 	void showMessage(const WORD backColour, const WORD textColour, int x, int y, const string& message);
-	void paintGrid(const char g[][SIZEX], const Item&, const Item&);
+	void paintGrid(const char g[][SIZEX], const Item&, const Item&, const vector<Item>& snakeBody);
 	const string getDate();
 	const string getTime();
 
@@ -383,13 +393,20 @@ void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, con
 	showMessage(clRed, clYellow, 40, 10, "TO QUIT - ENTER 'Q'           ");
 	//print auxiliary messages if any
 	showMessage(clBlack, clWhite, 40, 8, mess);	//display current message
-
+	if (isCheat) {
+		showMessage(clDarkRed, clBlack, 40, 11, "CHEAT MODE ACTIVATED");
+		showMessage(clDarkRed, clBlack, 40, 12, "SCORE WILL NOT BE RECORDED");
+	}
+	else {
+		showMessage(clDarkGreen, clWhite, 40, 11, "CHEAT MODE DEACTIVATED");
+		showMessage(clBlack, clWhite, 40, 12, " ");
+	}
 	//display grid contents
-	paintGrid(g, spot, mouse);
+	paintGrid(g, spot, mouse, snakeBody);
 
 }
 
-void paintGrid(const char g[][SIZEX], const Item& spot, const Item& mouse)
+void paintGrid(const char g[][SIZEX], const Item& spot, const Item& mouse, const vector<Item>& snakeBody)
 { //display grid content on screen
 	selectBackColour(clBlack);
 	selectTextColour(clWhite);
@@ -397,8 +414,15 @@ void paintGrid(const char g[][SIZEX], const Item& spot, const Item& mouse)
 	for (int row(0); row < SIZEY; ++row)
 	{
 		for (int col(0); col < SIZEX; ++col)
-			if (g[row][col] != g[spot.y][spot.x] && g[row][col] != g[mouse.y][mouse.x]) //If isn't spot
-				cout << g[row][col];	//output cell content
+			if (g[row][col] != g[spot.y][spot.x] && g[row][col] != g[mouse.y][mouse.x]) { //If isn't spot
+				if (g[row][col] == WALL) {
+					selectTextColour(clYellow);
+					cout << g[row][col];
+					selectTextColour(clWhite);
+				}
+				else
+					cout << g[row][col];
+			}
 			else if (g[row][col] == g[spot.y][spot.x]) { //If it is a spot
 				selectTextColour(clMagenta);
 				cout << g[row][col];
@@ -411,6 +435,7 @@ void paintGrid(const char g[][SIZEX], const Item& spot, const Item& mouse)
 			}
 		cout << endl;
 	}
+	selectTextColour(clCyan);
 	
 }
 
