@@ -45,7 +45,10 @@ const int  RIGHT(77);		//right arrow
 const int  LEFT(75);		//left arrow
 //defining the other command letters
 const char QUIT('Q');		//to end the game
+//defining game attributes
+const int MAXSCORE(10);
 
+bool isCheat(false);		//ADD TO PARAMETERS LATER.
 
 struct Item {
 	int x, y;
@@ -60,8 +63,8 @@ int main()
 {
 	//function declarations (prototypes)
 	void initialiseGame(char g[][SIZEX], char m[][SIZEX], Item& spot, Item& mouse, vector<Item>& snakeBody);
-	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse);
-	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten);
+	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse, int& playerScore, int& miceCaught);
+	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, int& playerScore, int& miceCaught);
 	bool wantsToQuit(const int key);
 	bool isArrowKey(const int k);
 	int  getKeyPress();
@@ -75,6 +78,8 @@ int main()
 	string message("LET'S START...");	//current message to player
 	vector<Item> snakeBody;
 	bool mouseEaten = false;			//Bool to make snake grow twice on eating mouse
+	int playerScore = 0;				//Stores player score throughout the game.
+	int miceCaught = 0;					//Stores number of mice caught.
 
 	//action...
 	seed();								//seed the random number generator
@@ -82,17 +87,17 @@ int main()
 	initialiseGame(grid, maze, spot, mouse, snakeBody);	//initialise grid (incl. walls and spot)
 	int key;							//current key selected by player
 	do {
-		renderGame(grid, message, spot, mouse);			//display game info, modified grid and message
+		renderGame(grid, message, spot, mouse, playerScore, miceCaught);			//display game info, modified grid and message
 		key = toupper(getKeyPress()); 	//read in  selected key: arrow or letter command
 		if (isArrowKey(key))
-			updateGame(grid, maze, spot, key, message, mouse, snakeBody, mouseEaten);
+			updateGame(grid, maze, spot, key, message, mouse, snakeBody, mouseEaten, playerScore, miceCaught);
 		else if (toupper(key) == 'C') {
 			cheatSnake(snakeBody);
 		}
 		else
 			message = "INVALID KEY!";  //set 'Invalid key' message
 	} while (!wantsToQuit(key));		//while user does not want to quit
-	renderGame(grid, message, spot, mouse);			//display game info, modified grid and messages
+	renderGame(grid, message, spot, mouse, playerScore, miceCaught);			//display game info, modified grid and messages
 	endProgram();						//display final message
 	return 0;
 }
@@ -206,17 +211,17 @@ void setInitialMazeStructure(char maze[][SIZEX])
 //----- Update Game
 //---------------------------------------------------------------------------
 
-void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten)
+void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, int& playerScore, int& miceCaught)
 { //update game
-	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten);
+	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, int& playerScore, int& miceCaught);
 	void updateGrid(char g[][SIZEX], const char maze[][SIZEX], Item& s, Item& mouse, vector<Item>& snakeBody);
 
-	updateGameData(grid, spot, keyCode, mess, mouse, snakeBody, mouseEaten);		//move spot in required direction
+	updateGameData(grid, spot, keyCode, mess, mouse, snakeBody, mouseEaten, playerScore, miceCaught);		//move spot in required direction
 	updateGrid(grid, maze, spot, mouse, snakeBody);					//update grid information
 }
 
 
-void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten)
+void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten, int& playerScore, int& miceCaught)
 { //move spot in required direction
 	bool isArrowKey(const int k);
 	void setKeyDirection(int k, int& dx, int& dy);
@@ -235,6 +240,9 @@ void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& me
 	switch (g[spot.y + dy][spot.x + dx])
 	{			//...depending on what's on the target position in grid...
 	case TUNNEL:		//can move
+		if (!isCheat) {
+			playerScore++;
+		}
 		if (mouseEaten) {
 			eatMouse(spot, mouse, snakeBody);
 			mouseEaten = false;
@@ -246,6 +254,7 @@ void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& me
 		break;
 	case MOUSE:
 		mess = "nomnomnom";
+		miceCaught++;
 		eatMouse(spot, mouse, snakeBody);
 		moveSnake(snakeBody, spot, dx, dy);
 		setMouseCoordinates(mouse, g);
@@ -356,7 +365,7 @@ void showMessage(const WORD backColour, const WORD textColour, int x, int y, con
 	selectTextColour(textColour);
 	cout << message + string(40 - message.length(), ' ');
 }
-void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse)
+void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse, int& playerScore, int& miceCaught)
 { //display game title, messages, maze, spot and other items on screen
 	string tostring(char x);
 	string tostring(int x);
@@ -377,9 +386,11 @@ void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, con
 	showMessage(clBlack, clBlack, 40, 3, " ");
 	showMessage(clBlue, clWhite, 40, 4, "SE, Ryan Evans b8017748");
 	showMessage(clBlue, clWhite, 40, 5, "Ben Mottershead b7003892");
+	showMessage(clYellow, clBlack, 40, 6, "Score: " + tostring(playerScore));
+	showMessage(clYellow, clBlack, 40, 7, "Mice caught: " + tostring(miceCaught));
 	//display menu options available
-	showMessage(clBlack, clBlack, 40, 6, " ");
-	showMessage(clRed, clYellow, 40, 7, "TO MOVE - USE KEYBOARD ARROWS ");
+	showMessage(clBlack, clBlack, 40, 8, " ");
+	showMessage(clRed, clYellow, 40, 9, "TO MOVE - USE KEYBOARD ARROWS ");
 	showMessage(clRed, clYellow, 40, 10, "TO QUIT - ENTER 'Q'           ");
 	//print auxiliary messages if any
 	showMessage(clBlack, clWhite, 40, 8, mess);	//display current message
