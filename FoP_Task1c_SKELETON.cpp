@@ -47,7 +47,6 @@ const int  LEFT(75);		//left arrow
 const char QUIT('Q');		//to end the game
 
 
-
 struct Item {
 	int x, y;
 	char symbol;
@@ -62,7 +61,7 @@ int main()
 	//function declarations (prototypes)
 	void initialiseGame(char g[][SIZEX], char m[][SIZEX], Item& spot, Item& mouse, vector<Item>& snakeBody);
 	void renderGame(const char g[][SIZEX], const string& mess, const Item& spot, const Item& mouse);
-	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse, vector<Item>& snakeBody);
+	void updateGame(char g[][SIZEX], const char m[][SIZEX], Item& s, const int kc, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten);
 	bool wantsToQuit(const int key);
 	bool isArrowKey(const int k);
 	int  getKeyPress();
@@ -75,6 +74,7 @@ int main()
 	Item mouse = { 0, 0, MOUSE };
 	string message("LET'S START...");	//current message to player
 	vector<Item> snakeBody;
+	bool mouseEaten = false;			//Bool to make snake grow twice on eating mouse
 
 	//action...
 	seed();								//seed the random number generator
@@ -85,7 +85,7 @@ int main()
 		renderGame(grid, message, spot, mouse);			//display game info, modified grid and message
 		key = toupper(getKeyPress()); 	//read in  selected key: arrow or letter command
 		if (isArrowKey(key))
-			updateGame(grid, maze, spot, key, message, mouse, snakeBody);
+			updateGame(grid, maze, spot, key, message, mouse, snakeBody, mouseEaten);
 		else if (toupper(key) == 'C') {
 			cheatSnake(snakeBody);
 		}
@@ -122,7 +122,8 @@ void growSnake(vector<Item>& snakeBody, Item& mouse, Item& spot) {			//Increase 
 	Item bodyPart;														//Create new Item bodypart
 	bodyPart.symbol = SNAKE;											//Set bodypart symbol to body (declared as global variable)
 
-	snakeBody.push_back(bodyPart);										//Add to end of vector
+	snakeBody.push_back(bodyPart);									//Add to end of vector
+
 }
 
 void cheatSnake(vector<Item>& snakeBody) {				//Decrease snake size down to 3, on keypress 'c'
@@ -130,6 +131,7 @@ void cheatSnake(vector<Item>& snakeBody) {				//Decrease snake size down to 3, o
 		snakeBody.pop_back();							//Remove from vector
 	}
 }
+
 void moveSnake(vector<Item>& snakeBody, Item& spot, int dx, int dy) {			//Move the body of the snake, to follow the spot
 	for (int i(snakeBody.size()); i != 1; --i) {
 
@@ -141,6 +143,7 @@ void moveSnake(vector<Item>& snakeBody, Item& spot, int dx, int dy) {			//Move t
 	spot.x += dx;
 	spot.y += dy;
 }
+
 void initialiseSnakeBody(vector<Item>& snakeBody, Item& spot) {					//Create initial snakebody. Adds Items to vector of items
 	for (int i(0); i < 3; ++i) {
 		Item bodyPart;
@@ -203,24 +206,23 @@ void setInitialMazeStructure(char maze[][SIZEX])
 //----- Update Game
 //---------------------------------------------------------------------------
 
-void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse, vector<Item>& snakeBody)
+void updateGame(char grid[][SIZEX], const char maze[][SIZEX], Item& spot, const int keyCode, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten)
 { //update game
-	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse, vector<Item>& snakeBody);
+	void updateGameData(const char g[][SIZEX], Item& s, const int kc, string& m, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten);
 	void updateGrid(char g[][SIZEX], const char maze[][SIZEX], Item& s, Item& mouse, vector<Item>& snakeBody);
 
-	updateGameData(grid, spot, keyCode, mess, mouse, snakeBody);		//move spot in required direction
+	updateGameData(grid, spot, keyCode, mess, mouse, snakeBody, mouseEaten);		//move spot in required direction
 	updateGrid(grid, maze, spot, mouse, snakeBody);					//update grid information
 }
 
 
-void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse, vector<Item>& snakeBody)
+void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& mess, Item& mouse, vector<Item>& snakeBody, bool& mouseEaten)
 { //move spot in required direction
 	bool isArrowKey(const int k);
 	void setKeyDirection(int k, int& dx, int& dy);
 	void eatMouse(Item& spot, Item& mouse, vector<Item>& snakeBody);
 	void setMouseCoordinates(Item& mouse, const char[][SIZEX]);
 	void moveSnake(vector<Item>& snakeBody, Item& spot, int dx, int dy);
-
 	assert(isArrowKey(key));
 
 	//reset message to blank
@@ -233,6 +235,10 @@ void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& me
 	switch (g[spot.y + dy][spot.x + dx])
 	{			//...depending on what's on the target position in grid...
 	case TUNNEL:		//can move
+		if (mouseEaten) {
+			eatMouse(spot, mouse, snakeBody);
+			mouseEaten = false;
+		}
 		moveSnake(snakeBody, spot, dx, dy);
 		break;
 	case WALL:  		//hit a wall and stay there
@@ -243,6 +249,7 @@ void updateGameData(const char g[][SIZEX], Item& spot, const int key, string& me
 		eatMouse(spot, mouse, snakeBody);
 		moveSnake(snakeBody, spot, dx, dy);
 		setMouseCoordinates(mouse, g);
+		mouseEaten = true;
 		break;
 	}
 }
